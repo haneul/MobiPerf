@@ -151,6 +151,7 @@ public class MeasurementScheduler extends Service {
 	// Service objects are by nature singletons enforced by Android
 	@Override
 	public void onCreate() {
+		Log.w("MobiPerf/MeasurementSchedule", "Start");
 		PhoneUtils.setGlobalContext(this.getApplicationContext());
 		phoneUtils = PhoneUtils.getPhoneUtils();
 		phoneUtils.registerSignalStrengthListener();
@@ -196,7 +197,8 @@ public class MeasurementScheduler extends Service {
 				} else if (intent.getAction().equals(
 						UpdateIntent.MEASUREMENT_ACTION)) {
 					Logger.d("MeasurementIntent intent received");
-					handleMeasurement();
+					boolean force = intent.getBooleanExtra("force", false);
+					handleMeasurement(force);
 				} else if (intent.getAction().equals(
 						UpdateIntent.MEASUREMENT_PROGRESS_UPDATE_ACTION)) {
 					Logger.d("MeasurementIntent update intent received");
@@ -280,10 +282,14 @@ public class MeasurementScheduler extends Service {
 	}
 
 	private void handleMeasurement() {
+		handleMeasurement(false);
+	}
+	
+	private void handleMeasurement(boolean force) {
 		try {
 			MeasurementTask task = taskQueue.peek();
 			// Process the head of the queue.
-			if (task != null && task.timeFromExecution() <= 0) {
+			if (task != null && (task.timeFromExecution() <= 0 || force)) {
 				taskQueue.poll();
 				Future<MeasurementResult> future;
 				Logger.i("Processing task " + task.toString());

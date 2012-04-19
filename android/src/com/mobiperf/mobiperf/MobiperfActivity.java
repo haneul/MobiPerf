@@ -124,36 +124,36 @@ public class MobiperfActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		Log.v("menu", "onOptionsItemSelected " + item.getItemId());
 
-		switch (item.getItemId()) {
-		case R.id.menuPauseResume:
-			if (MobiperfActivity.scheduler != null) {
-				if (MobiperfActivity.scheduler.isPauseRequested()) {
-					MobiperfActivity.scheduler.resume();
-				} else {
-					MobiperfActivity.scheduler.pause();
-				}
-			}
-			return true;
-		case R.id.menuQuit:
-			quitApp();
-			return true;
-		case R.id.menuSettings:
-			Intent settingsActivity = new Intent(getBaseContext(),
-					com.mobiperf.mobiperf.Preferences.class);
-			startActivity(settingsActivity);
-			return true;
-		case R.id.aboutPage:
-			Intent intent = new Intent(getBaseContext(),
-					com.mobiperf.mobiperf.About.class);
-			startActivity(intent);
-			return true;
-		case R.id.menuLog:
-			intent = new Intent(getBaseContext(), SystemConsoleActivity.class);
-			startActivity(intent);
-			return true;
-		default:
+//		switch (item.getItemId()) {
+//		case R.id.menuPauseResume:
+//			if (MobiperfActivity.scheduler != null) {
+//				if (MobiperfActivity.scheduler.isPauseRequested()) {
+//					MobiperfActivity.scheduler.resume();
+//				} else {
+//					MobiperfActivity.scheduler.pause();
+//				}
+//			}
+//			return true;
+//		case R.id.menuQuit:
+//			quitApp();
+//			return true;
+//		case R.id.menuSettings:
+//			Intent settingsActivity = new Intent(getBaseContext(),
+//					com.mobiperf.mobiperf.Preferences.class);
+//			startActivity(settingsActivity);
+//			return true;
+//		case R.id.aboutPage:
+//			Intent intent = new Intent(getBaseContext(),
+//					com.mobiperf.mobiperf.About.class);
+//			startActivity(intent);
+//			return true;
+//		case R.id.menuLog:
+//			intent = new Intent(getBaseContext(), SystemConsoleActivity.class);
+//			startActivity(intent);
+//			return true;
+//		default:
 			return super.onOptionsItemSelected(item);
-		}
+		//}
 	}
 
 	@Override

@@ -253,20 +253,20 @@ public class MeasurementCreationActivity extends Activity {
 
 		@Override
 		public void onFocusChange(View v, boolean hasFocus) {
-			switch (v.getId()) {
-			case R.id.pingTargetText:
+			//switch (v.getId()) {
+			//case R.id.pingTargetText:
 				/*
 				 * TODO(Wenjie): Verify user input
 				 */
-				break;
-			case R.id.httpUrlText:
+				//break;
+			//case R.id.httpUrlText:
 				/*
 				 * TODO(Wenjie): Verify user input
 				 */
-				break;
-			default:
-				break;
-			}
+				//break;
+//			default:
+//				break;
+//			}
 			if (!hasFocus) {
 				hideKyeboard((EditText) v);
 			}

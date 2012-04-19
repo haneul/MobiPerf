@@ -143,21 +143,21 @@ public class MeasurementScheduleConsoleActivity extends Activity {
 	public boolean onContextItemSelected(MenuItem item) {
 		AdapterContextMenuInfo info = (AdapterContextMenuInfo) item
 				.getMenuInfo();
-		switch (item.getItemId()) {
-		case R.id.ctxMenuDeleteTask:
-			scheduler = MobiperfActivity.scheduler;
-			if (scheduler != null) {
-				String selectedTaskString = consoleContent
-						.getItem(longClickedItemPosition);
-				String taskKey = taskMap.get(selectedTaskString);
-				if (taskKey != null) {
-					scheduler.removeTaskByKey(taskKey);
-				}
-			}
-			updateConsole();
-			return true;
-		default:
-		}
+//		switch (item.getItemId()) {
+//		case R.id.ctxMenuDeleteTask:
+//			scheduler = MobiperfActivity.scheduler;
+//			if (scheduler != null) {
+//				String selectedTaskString = consoleContent
+//						.getItem(longClickedItemPosition);
+//				String taskKey = taskMap.get(selectedTaskString);
+//				if (taskKey != null) {
+//					scheduler.removeTaskByKey(taskKey);
+//				}
+//			}
+//			updateConsole();
+//			return true;
+//		default:
+//		}
 		return false;
 	}
 

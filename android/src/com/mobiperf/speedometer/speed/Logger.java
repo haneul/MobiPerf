@@ -25,9 +25,14 @@ import android.util.Log;
  * 
  */
 public class Logger {
-	private final static boolean LOGGING_ENABLED = false;
+	private static boolean LOGGING_ENABLED = false;
 	private final static String TAG = "Speedometer";
 
+	public static void setEnabled(boolean enabled)
+	{
+		LOGGING_ENABLED = enabled;
+	}
+	
 	public static void d(String msg) {
 		if (LOGGING_ENABLED) {
 			Log.d(TAG, msg);
