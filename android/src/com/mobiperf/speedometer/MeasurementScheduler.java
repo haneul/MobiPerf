@@ -13,29 +13,7 @@
  * limitations under the License.
  */
 
-package com.mobiperf.speedometer.speed;
-
-import com.google.myjson.reflect.TypeToken;
-import com.mobiperf.speedometer.speed.BatteryCapPowerManager.PowerAwareTask;
-import com.mobiperf.speedometer.util.MeasurementJsonConvertor;
-import com.mobiperf.speedometer.util.PhoneUtils;
-import com.mobiperf.mobiperf.R;
-
-import android.app.AlarmManager;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.os.Binder;
-import android.os.IBinder;
-import android.preference.PreferenceManager;
-import android.util.Log;
-import android.widget.ArrayAdapter;
+package com.mobiperf.speedometer;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -59,6 +37,27 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.PriorityBlockingQueue;
 
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.os.Binder;
+import android.os.IBinder;
+import android.preference.PreferenceManager;
+import android.widget.ArrayAdapter;
+
+import com.google.myjson.reflect.TypeToken;
+import com.mobiperf.mobiperf.R;
+import com.mobiperf.speedometer.BatteryCapPowerManager.PowerAwareTask;
+import com.mobiperf.util.MeasurementJsonConvertor;
+import com.mobiperf.util.PhoneUtils;
+
 /**
  * The single scheduler thread that monitors the task queue, runs tasks at their
  * specified times, and finally retrieves and reports results once they finish.
@@ -75,16 +74,18 @@ public class MeasurementScheduler extends Service {
 	private ExecutorService measurementExecutor;
 	private BroadcastReceiver broadcastReceiver;
 	private Boolean pauseRequested = true;
+	private static boolean backgroundEnabled = false;
 	private boolean stopRequested = false;
 	private boolean isSchedulerStarted = false;
 	private Checkin checkin;
-	private long checkinIntervalSec;
+	private static long checkinIntervalSec;
 	private long checkinRetryIntervalSec;
 	private int checkinRetryCnt;
 	private CheckinTask checkinTask;
 	private Calendar lastCheckinTime;
+	private static boolean gpsEnabled = false;
 
-	private PendingIntent checkinIntentSender;
+	private static PendingIntent checkinIntentSender;
 	/**
 	 * Intent for checkin retries. Reusing checkinIntentSender for retries will
 	 * cancel any previously configured periodic checkin schedule. Thus we need
@@ -92,9 +93,9 @@ public class MeasurementScheduler extends Service {
 	 */
 	private PendingIntent checkinRetryIntentSender;
 	private PendingIntent measurementIntentSender;
-	private AlarmManager alarmManager;
+	private static AlarmManager alarmManager;
 	private BatteryCapPowerManager powerManager;
-	/*
+	/**
 	 * Both taskQueue and pendingTasks are thread safe and operations on them
 	 * are atomic. To guarantee reliable value propagation between threads, use
 	 * volatile keyword.
@@ -169,10 +170,8 @@ public class MeasurementScheduler extends Service {
 		this.pendingTasks = new ConcurrentHashMap<MeasurementTask, Future<MeasurementResult>>();
 
 		this.notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		this.alarmManager = (AlarmManager) this
-				.getSystemService(Context.ALARM_SERVICE);
-		this.powerManager = new BatteryCapPowerManager(
-				Config.DEFAULT_BATTERY_THRESH_PRECENT, this);
+		alarmManager = (AlarmManager) this.getSystemService(Context.ALARM_SERVICE);
+		this.powerManager = new BatteryCapPowerManager(Config.DEFAULT_BATTERY_THRESH_PRECENT, this);
 		// Register activity specific BroadcastReceiver here
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(UpdateIntent.PREFERENCE_ACTION);
@@ -188,24 +187,19 @@ public class MeasurementScheduler extends Service {
 			public void onReceive(Context context, Intent intent) {
 				if (intent.getAction().equals(UpdateIntent.PREFERENCE_ACTION)) {
 					updateFromPreference();
-				} else if (intent.getAction().equals(
-						UpdateIntent.CHECKIN_ACTION)
-						|| intent.getAction().equals(
-								UpdateIntent.CHECKIN_RETRY_ACTION)) {
+				} else if (intent.getAction().equals(UpdateIntent.CHECKIN_ACTION) || 
+						intent.getAction().equals(UpdateIntent.CHECKIN_RETRY_ACTION)) {
 					Logger.d("Checkin intent received");
 					handleCheckin(false);
-				} else if (intent.getAction().equals(
-						UpdateIntent.MEASUREMENT_ACTION)) {
+				} else if (intent.getAction().equals(UpdateIntent.MEASUREMENT_ACTION)) {
 					Logger.d("MeasurementIntent intent received");
 					boolean force = intent.getBooleanExtra("force", false);
 					handleMeasurement(force);
-				} else if (intent.getAction().equals(
-						UpdateIntent.MEASUREMENT_PROGRESS_UPDATE_ACTION)) {
+				} else if (intent.getAction().equals(UpdateIntent.MEASUREMENT_PROGRESS_UPDATE_ACTION)) {
 					Logger.d("MeasurementIntent update intent received");
 					if (intent.getIntExtra(UpdateIntent.PROGRESS_PAYLOAD,
 							Config.INVALID_PROGRESS) == Config.MEASUREMENT_END_PROGRESS) {
-						if (intent
-								.getStringExtra(UpdateIntent.ERROR_STRING_PAYLOAD) != null) {
+						if (intent.getStringExtra(UpdateIntent.ERROR_STRING_PAYLOAD) != null) {
 							failedMeasurementCnt++;
 						} else {
 							completedMeasurementCnt++;
@@ -213,8 +207,7 @@ public class MeasurementScheduler extends Service {
 						updateResultsConsole(intent);
 					}
 				} else if (intent.getAction().equals(UpdateIntent.MSG_ACTION)) {
-					String msg = intent.getExtras().getString(
-							UpdateIntent.STRING_PAYLOAD);
+					String msg = intent.getExtras().getString(UpdateIntent.STRING_PAYLOAD);
 					Date now = Calendar.getInstance().getTime();
 					insertStringToConsole(systemConsole, now + "\n\n" + msg);
 				}
@@ -422,7 +415,7 @@ public class MeasurementScheduler extends Service {
 
 	/** Set the interval for checkin in seconds */
 	public synchronized void setCheckinInterval(long interval) {
-		this.checkinIntervalSec = Math.max(Config.MIN_CHECKIN_INTERVAL_SEC,
+		checkinIntervalSec = Math.max(Config.MIN_CHECKIN_INTERVAL_SEC,
 				interval);
 		// the new checkin schedule will start in
 		// PAUSE_BETWEEN_CHECKIN_CHANGE_MSEC seconds
@@ -430,16 +423,39 @@ public class MeasurementScheduler extends Service {
 				new UpdateIntent("", UpdateIntent.CHECKIN_ACTION),
 				PendingIntent.FLAG_CANCEL_CURRENT);
 		alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
-				System.currentTimeMillis()
-						+ Config.PAUSE_BETWEEN_CHECKIN_CHANGE_MSEC,
+				System.currentTimeMillis() + Config.PAUSE_BETWEEN_CHECKIN_CHANGE_MSEC,
 				checkinIntervalSec * 1000, checkinIntentSender);
 
 		Logger.i("Setting checkin interval to " + interval + " seconds");
 	}
+	
+	public static boolean isBackgroundEnabled() {
+		return backgroundEnabled;
+	}
+	
+	public static void enableAlarm() {
+		alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,
+				System.currentTimeMillis() + Config.PAUSE_BETWEEN_CHECKIN_CHANGE_MSEC,
+				checkinIntervalSec * 1000, checkinIntentSender);
+		backgroundEnabled = true;
+	}
+	
+	public static void cancelAlarm() {
+		alarmManager.cancel(checkinIntentSender);
+		backgroundEnabled = false;
+	}
+	
+	public static boolean isGpsEnabled() {
+		return gpsEnabled;
+	}
+	
+	public static void setGpsEnabled(boolean e) {
+		gpsEnabled = e;
+	}
 
 	/** Returns the checkin interval of the scheduler in seconds */
 	public synchronized long getCheckinInterval() {
-		return this.checkinIntervalSec;
+		return checkinIntervalSec;
 	}
 
 	/** Returns the last checkin time */
@@ -573,22 +589,20 @@ public class MeasurementScheduler extends Service {
 	public void updateStatus() {
 		Intent intent = new Intent();
 		intent.setAction(UpdateIntent.SYSTEM_STATUS_UPDATE_ACTION);
-		String statsMsg = completedMeasurementCnt + " completed, "
-				+ failedMeasurementCnt + " failed";
+		String statsMsg = completedMeasurementCnt + " completed, " + failedMeasurementCnt + " failed";
 		intent.putExtra(UpdateIntent.STATS_MSG_PAYLOAD, statsMsg);
 		sendBroadcast(intent);
 	}
 
 	private void updateFromPreference() {
-		SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		try {
 			powerManager.setBatteryThresh(Integer.parseInt(prefs.getString(
-					getString(R.string.batteryMinThresPrefKey),
+					Config.PREF_KEY_BATTERY_THRESHOLD,
 					String.valueOf(Config.DEFAULT_BATTERY_THRESH_PRECENT))));
 
 			this.setCheckinInterval(Integer.parseInt(prefs.getString(
-					getString(R.string.checkinIntervalPrefKey),
+					Config.PREF_KEY_CHECKIN_INTERVAL,
 					String.valueOf(Config.DEFAULT_CHECKIN_INTERVAL_SEC / 3600))) * 3600);
 
 			updateStatus();
@@ -793,8 +807,7 @@ public class MeasurementScheduler extends Service {
 					 */
 					resetCheckin();
 				} else if (checkinRetryIntervalSec < checkinIntervalSec) {
-					Logger.i("Retrying checkin in " + checkinRetryIntervalSec
-							+ " seconds");
+					Logger.i("Retrying checkin in " + checkinRetryIntervalSec + " seconds");
 					/*
 					 * Use checkinRetryIntentSender so that the periodic checkin
 					 * schedule will remain intact
@@ -804,8 +817,7 @@ public class MeasurementScheduler extends Service {
 									UpdateIntent.CHECKIN_RETRY_ACTION),
 							PendingIntent.FLAG_CANCEL_CURRENT);
 					alarmManager.set(AlarmManager.RTC_WAKEUP,
-							System.currentTimeMillis()
-									+ checkinRetryIntervalSec * 1000,
+							System.currentTimeMillis() + checkinRetryIntervalSec * 1000,
 							checkinRetryIntentSender);
 					checkinRetryCnt++;
 					checkinRetryIntervalSec = Math.min(
@@ -857,13 +869,11 @@ public class MeasurementScheduler extends Service {
 		private void broadcastMeasurementStart() {
 			Intent intent = new Intent();
 			intent.setAction(UpdateIntent.MEASUREMENT_PROGRESS_UPDATE_ACTION);
-			intent.putExtra(UpdateIntent.TASK_PRIORITY_PAYLOAD,
-					MeasurementTask.USER_PRIORITY);
+			intent.putExtra(UpdateIntent.TASK_PRIORITY_PAYLOAD, MeasurementTask.USER_PRIORITY);
 			MeasurementScheduler.this.sendBroadcast(intent);
 
 			intent.setAction(UpdateIntent.SYSTEM_STATUS_UPDATE_ACTION);
-			intent.putExtra(UpdateIntent.STATUS_MSG_PAYLOAD,
-					realTask.getDescriptor() + " is running. ");
+			intent.putExtra(UpdateIntent.STATUS_MSG_PAYLOAD, realTask.getDescriptor() + " is running. ");
 
 			MeasurementScheduler.this.sendBroadcast(intent);
 		}
@@ -871,20 +881,16 @@ public class MeasurementScheduler extends Service {
 		private void broadcastMeasurementEnd(MeasurementResult result) {
 			Intent intent = new Intent();
 			intent.setAction(UpdateIntent.MEASUREMENT_PROGRESS_UPDATE_ACTION);
-			intent.putExtra(UpdateIntent.TASK_PRIORITY_PAYLOAD,
-					MeasurementTask.USER_PRIORITY);
+			intent.putExtra(UpdateIntent.TASK_PRIORITY_PAYLOAD, MeasurementTask.USER_PRIORITY);
 			// A progress value greater than max progress to indicate the
 			// termination of a measurement
-			intent.putExtra(UpdateIntent.PROGRESS_PAYLOAD,
-					Config.MEASUREMENT_END_PROGRESS);
+			intent.putExtra(UpdateIntent.PROGRESS_PAYLOAD, Config.MEASUREMENT_END_PROGRESS);
 
 			if (result != null) {
 				intent.putExtra(UpdateIntent.STRING_PAYLOAD, result.toString());
 			} else {
-				String errorString = "Measurement " + realTask.getDescriptor()
-						+ " has failed";
-				errorString += "\nTimestamp: "
-						+ Calendar.getInstance().getTime();
+				String errorString = "Measurement " + realTask.getDescriptor() + " has failed";
+				errorString += "\nTimestamp: " + Calendar.getInstance().getTime();
 				intent.putExtra(UpdateIntent.ERROR_STRING_PAYLOAD, errorString);
 			}
 			MeasurementScheduler.this.sendBroadcast(intent);
@@ -919,11 +925,9 @@ public class MeasurementScheduler extends Service {
 	 * Save measurement statistics to persistent storage.
 	 */
 	private void saveStats() {
-		SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		SharedPreferences.Editor editor = prefs.edit();
-		editor.putInt(Config.PREF_KEY_COMPLETED_MEASUREMENTS,
-				completedMeasurementCnt);
+		editor.putInt(Config.PREF_KEY_COMPLETED_MEASUREMENTS, completedMeasurementCnt);
 		editor.putInt(Config.PREF_KEY_FAILED_MEASUREMENTS, failedMeasurementCnt);
 		editor.commit();
 	}
@@ -932,12 +936,9 @@ public class MeasurementScheduler extends Service {
 	 * Restore measurement statistics from persistent storage.
 	 */
 	private void restoreStats() {
-		SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
-		completedMeasurementCnt = prefs.getInt(
-				Config.PREF_KEY_COMPLETED_MEASUREMENTS, 0);
-		failedMeasurementCnt = prefs.getInt(
-				Config.PREF_KEY_FAILED_MEASUREMENTS, 0);
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		completedMeasurementCnt = prefs.getInt(Config.PREF_KEY_COMPLETED_MEASUREMENTS, 0);
+		failedMeasurementCnt = prefs.getInt(Config.PREF_KEY_FAILED_MEASUREMENTS, 0);
 	}
 
 	/**
@@ -989,8 +990,7 @@ public class MeasurementScheduler extends Service {
 	 */
 	private void restoreConsole(ArrayAdapter<String> consoleContent,
 			String prefKey) {
-		SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		String savedConsole = prefs.getString(prefKey, null);
 		if (savedConsole != null) {
 			Type listType = new TypeToken<ArrayList<String>>() {
