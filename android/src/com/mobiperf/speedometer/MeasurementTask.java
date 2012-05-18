@@ -148,6 +148,26 @@ public abstract class MeasurementTask implements Callable<MeasurementResult>,
 	public MeasurementDesc getDescription() {
 		return this.measurementDesc;
 	}
+	
+	public int getLocationUpdateDistance() {
+		String trigger = this.measurementDesc.parameters.get("trigger_location_update");
+		int res = 0;
+		if(trigger != null && trigger.equals("true")) {
+			String distance = this.measurementDesc.parameters.get("location_update_distance");
+			if(distance != null)
+			{
+				res = Integer.parseInt(distance);
+			}
+		}
+		return res;
+	}
+	
+	protected boolean calledByLocation = false;
+	public void setCalledByLocation(boolean called)
+	{
+		calledByLocation = called;
+	}
+	public boolean getCalledByLocation() { return calledByLocation; }
 
 	/**
 	 * Returns a brief human-readable descriptor of the task.

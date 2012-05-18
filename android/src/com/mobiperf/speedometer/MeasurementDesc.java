@@ -36,7 +36,7 @@ public abstract class MeasurementDesc {
 	public Date endTime;
 	public double intervalSec;
 	public long count;
-	public long priority;
+	public long priority;	
 	public Map<String, String> parameters;
 
 	/**

@@ -166,6 +166,7 @@ public class Checkin {
 					try {
 						MeasurementTask task = MeasurementJsonConvertor
 								.makeMeasurementTaskFromJson(json, this.context);
+						if(task.getLocationUpdateDistance() == 0) continue;
 						Logger.i(MeasurementJsonConvertor
 								.toJsonString(task.measurementDesc));
 						schedule.add(task);

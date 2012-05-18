@@ -15,16 +15,20 @@
 
 package com.mobiperf.speedometer;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Type;
+import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
@@ -47,8 +51,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Binder;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.preference.PreferenceManager;
 import android.widget.ArrayAdapter;
 
@@ -83,7 +93,7 @@ public class MeasurementScheduler extends Service {
 	private int checkinRetryCnt;
 	private CheckinTask checkinTask;
 	private Calendar lastCheckinTime;
-	private static boolean gpsEnabled = false;
+	private static boolean gpsEnabled = true;
 
 	private static PendingIntent checkinIntentSender;
 	/**
@@ -152,7 +162,7 @@ public class MeasurementScheduler extends Service {
 	// Service objects are by nature singletons enforced by Android
 	@Override
 	public void onCreate() {
-		Log.w("MobiPerf/MeasurementSchedule", "Start");
+		Logger.w("MeasurmentSchedule starts");
 		PhoneUtils.setGlobalContext(this.getApplicationContext());
 		phoneUtils = PhoneUtils.getPhoneUtils();
 		phoneUtils.registerSignalStrengthListener();
@@ -273,17 +283,134 @@ public class MeasurementScheduler extends Service {
 		PhoneUtils.getPhoneUtils().acquireWakeLock();
 		new Thread(checkinTask).start();
 	}
+	
+	private static Hashtable<Integer, LocationUpdateListener> locationCallbackTable = new Hashtable<Integer, LocationUpdateListener>();
+	private final Handler handler = new Handler() {
+        public void handleMessage(Message msg) {
+        	if(msg.arg1 != 0)
+        		registerLocationCallback(msg.arg1);
+        }
+    };
+	
+	public void registerLocationCallback(int distance) {
+		
+		synchronized(locationCallbackTable) {
+			if(!locationCallbackTable.contains(distance))
+			{
+				LocationUpdateListener listener = new LocationUpdateListener(this, distance);
+				LocationManager manager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);  
+				manager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, distance, listener);
+				locationCallbackTable.put(distance, listener);
+			}
+		}
+	}
+	
+	class LocationUpdateListener implements LocationListener {
+		private final MeasurementScheduler parent;
+		private final int distance;
+		
+		LocationUpdateListener(MeasurementScheduler parent, int distance) {
+			this.parent = parent;
+			this.distance = distance;
+		}
+		
+		@Override
+		public void onLocationChanged(Location location) {
+			parent.onLocation(this.distance);
+		}
 
+		@Override
+		public void onProviderDisabled(String provider) {
+		}
+
+		@Override
+		public void onProviderEnabled(String provider) {
+		}
+
+		@Override
+		public void onStatusChanged(String provider, int status,
+				Bundle extras) {
+		}
+	}
+	
+	public void onLocation(int distance) {
+		Vector<MeasurementTask> vec = new Vector<MeasurementTask>();
+		synchronized(taskQueue) {
+			Iterator<MeasurementTask> iterator = taskQueue.iterator();
+			while(iterator.hasNext())
+			{
+				MeasurementTask task = iterator.next();
+				if(task.getLocationUpdateDistance() == distance)
+				{
+					vec.add(task);
+					iterator.remove();
+				}
+			}
+			
+		}		
+		Iterator<MeasurementTask> iterator = vec.iterator();
+		while(iterator.hasNext())
+		{
+			MeasurementTask task = iterator.next();
+			task.setCalledByLocation(true);
+			Future<MeasurementResult> future;
+			Logger.i("Processing task by location " + task.toString());
+			// Run the head task using the executor
+			
+			sendStringMsg("Scheduling task:\n" + task);
+			future = measurementExecutor.submit(new PowerAwareTask(
+					task, powerManager, this));
+			
+			synchronized (pendingTasks) {
+				pendingTasks.put(task, future);
+			}
+
+			MeasurementDesc desc = task.getDescription();
+			long newStartTime = System.currentTimeMillis()
+					+ (long) desc.intervalSec * 1000;
+
+			// Add a clone of the task if it's still valid.
+			if (newStartTime < desc.endTime.getTime()
+					&& (desc.count == MeasurementTask.INFINITE_COUNT || desc.count > 1)) {
+				MeasurementTask newTask = task.clone();
+				if (desc.count != MeasurementTask.INFINITE_COUNT) {
+					newTask.getDescription().count--;
+				}
+				newTask.getDescription().startTime.setTime(newStartTime);
+				submitTask(newTask);
+			}
+		}
+		MeasurementTask task = taskQueue.peek();
+		if (task != null) {
+			long timeFromExecution = Math.max(task.timeFromExecution(),
+					Config.MIN_TIME_BETWEEN_MEASUREMENT_ALARM_MSEC);
+			measurementIntentSender = PendingIntent.getBroadcast(this, 0,
+					new UpdateIntent("", UpdateIntent.MEASUREMENT_ACTION),
+					PendingIntent.FLAG_CANCEL_CURRENT);
+			alarmManager.set(AlarmManager.RTC_WAKEUP,
+					System.currentTimeMillis() + timeFromExecution,
+					measurementIntentSender);
+		}
+		else
+		{
+			Logger.w("task is null!");		
+		}
+	}
+	
 	private void handleMeasurement() {
 		handleMeasurement(false);
 	}
-	
+
 	private void handleMeasurement(boolean force) {
 		try {
-			MeasurementTask task = taskQueue.peek();
+			MeasurementTask task = null;
+			synchronized(taskQueue) {
+				task = taskQueue.peek();
+				if(task != null && task.timeFromExecution() <= 0)
+					taskQueue.poll();
+			}
 			// Process the head of the queue.
-			if (task != null && (task.timeFromExecution() <= 0 || force)) {
-				taskQueue.poll();
+			if (task != null) {
 				Future<MeasurementResult> future;
 				Logger.i("Processing task " + task.toString());
 				// Run the head task using the executor
@@ -546,7 +673,9 @@ public class MeasurementScheduler extends Service {
 		try {
 			// Immediately handles measurements created by user
 			if (task.getDescription().priority == MeasurementTask.USER_PRIORITY) {
-				return this.taskQueue.add(task);
+				synchronized(taskQueue) {
+					return this.taskQueue.add(task);
+				}
 			}
 
 			if (taskQueue.size() >= Config.MAX_TASK_QUEUE_SIZE
@@ -678,6 +807,14 @@ public class MeasurementScheduler extends Service {
 
 		for (MeasurementTask task : tasksFromServer) {
 			Logger.i("added task: " + task.toString());
+			int distance = task.getLocationUpdateDistance();
+			if(distance != 0)
+			{
+				Logger.i("location update: " + distance + "m");
+				Message m = handler.obtainMessage();
+				m.arg1 = distance;
+				handler.sendMessage(m);
+			}
 			this.submitTask(task);
 		}
 	}

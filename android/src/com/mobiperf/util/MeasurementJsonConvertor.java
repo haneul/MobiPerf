@@ -88,6 +88,7 @@ public class MeasurementJsonConvertor {
 			// The getDescClassForMeasurement() is static and takes no arguments
 			Class descClass = (Class) getDescMethod.invoke(null,
 					(Object[]) null);
+			Logger.w(json.toString());
 			MeasurementDesc measurementDesc = gson.fromJson(json.toString(),
 					descClass);
 			Object[] cstParams = { measurementDesc, context };

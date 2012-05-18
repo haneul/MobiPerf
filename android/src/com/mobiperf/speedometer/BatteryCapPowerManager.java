@@ -149,6 +149,7 @@ public class BatteryCapPowerManager {
 				try {
 					Logger.i("Calling PowerAwareTask " + realTask);
 					result = realTask.call();
+					result.addResult("CalledByLocation", realTask.getCalledByLocation());
 					Logger.i("Got result " + result);
 					broadcastMeasurementEnd(result, null);
 					return result;

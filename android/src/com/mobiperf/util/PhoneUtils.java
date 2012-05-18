@@ -361,7 +361,7 @@ public class PhoneUtils {
 			criteriaCoarse.setPowerRequirement(Criteria.POWER_LOW);
 			String providerName = manager
 					.getBestProvider(criteriaCoarse, /* enabledOnly= */true);
-
+			Logger.i("Best Provier: " + providerName);
 			List<String> providers = manager.getAllProviders();
 			for (String providerNameIter : providers) {
 				try {
@@ -400,6 +400,7 @@ public class PhoneUtils {
 	public Location getLocation() {
 		try {
 			initLocation();
+			Logger.d("location Provider: " + locationProviderName);
 			Location location = locationManager.getLastKnownLocation(locationProviderName);
 			if (location == null) {
 				Logger.e("Cannot obtain location from provider " + locationProviderName);
