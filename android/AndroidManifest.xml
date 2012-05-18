@@ -41,7 +41,7 @@
     </activity>
     <service 
       android:name="com.mobiperf.speedometer.MeasurementScheduler" 
-      android:exported="false">
+      android:exported="true">
     </service>
     <receiver android:name="com.mobiperf.speedometer.WatchdogBootReceiver">
       <intent-filter>
