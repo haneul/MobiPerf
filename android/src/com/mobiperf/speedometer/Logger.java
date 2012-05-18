@@ -25,9 +25,10 @@ import android.util.Log;
  * 
  */
 public class Logger {
-	private static boolean LOGGING_ENABLED = false;
+	private static boolean LOGGING_ENABLED = true;
 	private final static String TAG = "MobiPerf";
-
+	private static LoggerInterface li = new FileLogger();
+	
 	public static void setEnabled(boolean enabled)
 	{
 		LOGGING_ENABLED = enabled;
@@ -35,61 +36,61 @@ public class Logger {
 	
 	public static void d(String msg) {
 		if (LOGGING_ENABLED) {
-			Log.d(TAG, msg);
+			li.d(msg);
 		}
 	}
 
 	public static void d(String msg, Throwable t) {
 		if (LOGGING_ENABLED) {
-			Log.d(TAG, msg, t);
+			li.d(msg, t);
 		}
 	}
 
 	public static void e(String msg) {
 		if (LOGGING_ENABLED) {
-			Log.e(TAG, msg);
+			li.e( msg);
 		}
 	}
 
 	public static void e(String msg, Throwable t) {
 		if (LOGGING_ENABLED) {
-			Log.e(TAG, msg, t);
+			li.e(msg, t);
 		}
 	}
 
 	public static void i(String msg) {
 		if (LOGGING_ENABLED) {
-			Log.i(TAG, msg);
+			li.i(msg);
 		}
 	}
 
 	public static void i(String msg, Throwable t) {
 		if (LOGGING_ENABLED) {
-			Log.i(TAG, msg, t);
+			li.i(msg, t);
 		}
 	}
 
 	public static void v(String msg) {
 		if (LOGGING_ENABLED) {
-			Log.v(TAG, msg);
+			li.v( msg);
 		}
 	}
 
 	public static void v(String msg, Throwable t) {
 		if (LOGGING_ENABLED) {
-			Log.v(TAG, msg, t);
+			li.v( msg, t);
 		}
 	}
 
 	public static void w(String msg) {
 		if (LOGGING_ENABLED) {
-			Log.w(TAG, msg);
+			li.w(msg);
 		}
 	}
 
 	public static void w(String msg, Throwable t) {
 		if (LOGGING_ENABLED) {
-			Log.w(TAG, msg, t);
+			li.w(msg, t);
 		}
 	}
 
