@@ -27,7 +27,7 @@ import android.util.Log;
 public class Logger {
 	private static boolean LOGGING_ENABLED = true;
 	private final static String TAG = "MobiPerf";
-	private static LoggerInterface li = new FileLogger();
+	private static LoggerInterface li = new AndroidLogger();
 	
 	public static void setEnabled(boolean enabled)
 	{

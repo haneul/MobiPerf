@@ -19,6 +19,7 @@ import com.mobiperf.util.PhoneUtils;
 
 import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
 
 import java.util.Calendar;
 import java.util.concurrent.Callable;
@@ -150,6 +151,9 @@ public class BatteryCapPowerManager {
 					Logger.i("Calling PowerAwareTask " + realTask);
 					result = realTask.call();
 					result.addResult("CalledByLocation", realTask.getCalledByLocation());
+					Location l = PhoneUtils.getPhoneUtils().getLocation();
+					result.addResult("MeasurementLongitude", l.getLongitude());
+					result.addResult("MeasurementLatitude", l.getLatitude());
 					Logger.i("Got result " + result);
 					broadcastMeasurementEnd(result, null);
 					return result;
