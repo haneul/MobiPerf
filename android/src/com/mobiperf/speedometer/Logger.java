@@ -18,8 +18,7 @@ package com.mobiperf.speedometer;
 import android.util.Log;
 
 /**
- * Wrapper for logging operations which can be disabled by setting
- * LOGGING_ENABLED.
+ * Wrapper for logging operations which can be disabled by setting LOGGING_ENABLED.
  * 
  * @author mdw@google.com (Matt Welsh)
  * 

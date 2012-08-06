@@ -24,18 +24,24 @@ ADMIN_USERS = ['drchoffnes@gmail.com', 'haneul0318@gmail.com']
 # Set of users with rights to administer tasks
 SCHEDULE_ADMIN_USERS = ['drchoffnes@gmail.com', 'haneul0318@gmail.com']
 
+VALIDATION_EMAIL_SENDER = 'David Choffnes <drchoffnes@gmail.com>'
+VALIDATION_EMAIL_RECIPIENT = 'David Choffnes <drchoffnes@gmail.com>'
+
 NUM_PROPERTIES_IN_LIST = 5
 NUM_MEASUREMENTS_IN_LIST = 20
 NUM_DEVICES_IN_LIST = 20
 
 GOOGLE_MAP_ZOOM = 15
 DEFAULT_GOOGLEMAP_ICON_IMAGE = '/static/green_location_pin.png'
-GOOGLEMAP_KEY=('AIzaSyBGcqV5HgIdC-EXeO_pQOEBLrhz4bpRwZM')
+GOOGLEMAP_KEY = ('AIzaSyBGcqV5HgIdC-EXeO_pQOEBLrhz4bpRwZM')
 
 # Default viewport of map is Google's PKV office building in Seattle
 DEFAULT_MAP_CENTER = (47.6508, -122.3515)
 
 DEFAULT_MEASUREMENT_TYPE_FOR_VIEWING = 'ping'
+
+# default timezone set to PST (values are stored as UTC)
+DEFAULT_TIMEZONE = 'pst'
 
 # Amount to randomize lat/long of locations on the map
 LOCATION_FUZZ_FACTOR = 0.001
@@ -61,3 +67,9 @@ MAX_QUERY_INTERVAL_DAY = 31
 
 # Timespan over which we consider a device to be active
 ACTIVE_DAYS = 5
+
+# Archive Settings
+ARCHIVE_CONTENT_TYPE = 'application/zip'
+ARCHIVE_CONTENT_DISPOSITION_BASE = 'attachment; filename="%s.zip"'
+ARCHIVE_GS_BUCKET = 'gavaletz_mobiperf'
+ARCHIVE_GS_ACL = 'project-private'
